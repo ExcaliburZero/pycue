@@ -14,24 +14,23 @@ def main(argv: List[str]) -> None:
 
     args = parser.parse_args(argv)
 
-    usb_interface = interfaces.USBInterface(debug=True)
+    with interfaces.USBInterface(debug=True) as usb_interface:
+        leds_per_fan = 16
 
-    leds_per_fan = 16
+        messages = [
+            protocol.LEDGroupsClear(),
+            protocol.LEDGroupSet(0, args.num_fans * leds_per_fan, 0),
+            protocol.LEDPortType(protocol.PortType.WS2812B),
+            protocol.LEDClear(),
+            protocol.LEDMode(protocol.ChannelMode.HardwarePlayback),
+            protocol.LEDTrigger(),
+        ]
 
-    messages = [
-        protocol.LEDGroupsClear(),
-        protocol.LEDGroupSet(0, args.num_fans * leds_per_fan, 0),
-        protocol.LEDPortType(protocol.PortType.WS2812B),
-        protocol.LEDClear(),
-        protocol.LEDMode(protocol.ChannelMode.HardwarePlayback),
-        protocol.LEDTrigger(),
-    ]
+        for msg in messages:
+            response = usb_interface.send(msg)
+            print(response)
 
-    for msg in messages:
-        response = usb_interface.send(msg)
-        print(response)
-
-        assert isinstance(response, protocol.Ok)
+            assert isinstance(response, protocol.Ok)
 
 
 if __name__ == "__main__":

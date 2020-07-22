@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import List
+from types import TracebackType
+from typing import List, Optional, Type
 
 import usb.core
 
@@ -34,18 +35,26 @@ class USBInterface(Interface):
 
     # TODO: consider supporting devices other than Lightning Node Pro
     def __init__(
-        self,
-        id_vendor: int = 0x1B1C,
-        id_product: int = 0x0C0B,
-        connect: bool = True,
-        debug: bool = False,
+        self, id_vendor: int = 0x1B1C, id_product: int = 0x0C0B, debug: bool = False,
     ) -> None:
         self.id_vendor = id_vendor
         self.id_product = id_product
         self.debug = debug
 
-        if connect:
-            self.connect()
+    def __enter__(self) -> "USBInterface":
+        self.connect()
+
+        return self
+
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_value: Optional[BaseException],
+        traceback: Optional[TracebackType],
+    ) -> Optional[bool]:
+        self.disconnect()
+
+        return None
 
     def connect(self) -> None:
         """
@@ -60,10 +69,13 @@ class USBInterface(Interface):
         else:
             self.device = usb_dev
 
+        self.device.reset()
         self.device.set_configuration()
 
         device_config = self.device.get_active_configuration()
         interface = device_config[(0, 0)]
+
+        usb.util.claim_interface(self.device, interface)
 
         self.endpoint = usb.util.find_descriptor(
             interface,
@@ -71,6 +83,9 @@ class USBInterface(Interface):
             custom_match=lambda e: usb.util.endpoint_direction(e.bEndpointAddress)
             == usb.util.ENDPOINT_OUT,
         )
+
+    def disconnect(self) -> None:
+        usb.util.dispose_resources(self.device)
 
     def send(self, message: protocol.Message) -> protocol.Response:
         payload = self.message_to_bytes(message)
