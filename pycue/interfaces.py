@@ -26,12 +26,17 @@ PROTOCOL_RESPONSE_OK: int = 0x00
 
 
 @dataclass
+class USBConnection:
+    device: usb.core.Device
+    endpoint: usb.core.Endpoint
+
+
+@dataclass
 class USBInterface(Interface):
     id_vendor: int
     id_product: int
     debug: bool
-    device: usb.core.Device
-    endpoint: usb.core.Endpoint
+    connection: Optional[USBConnection]
 
     # TODO: consider supporting devices other than Lightning Node Pro
     def __init__(
@@ -40,6 +45,7 @@ class USBInterface(Interface):
         self.id_vendor = id_vendor
         self.id_product = id_product
         self.debug = debug
+        self.connection = None
 
     def __enter__(self) -> "USBInterface":
         self.connect()
@@ -60,34 +66,44 @@ class USBInterface(Interface):
         """
         Activates the connection to the USB device so that we can communicate with it.
         """
-        usb_dev = usb.core.find(idVendor=self.id_vendor, idProduct=self.id_product)
+        device = usb.core.find(idVendor=self.id_vendor, idProduct=self.id_product)
 
-        if usb_dev is None:
+        if device is None:
             raise ValueError(
                 f"device not found: id_vendor={self.id_vendor}, id_product={self.id_product}"
             )
-        else:
-            self.device = usb_dev
 
-        self.device.reset()
-        self.device.set_configuration()
+        device.reset()
+        device.set_configuration()
 
-        device_config = self.device.get_active_configuration()
+        device_config = device.get_active_configuration()
         interface = device_config[(0, 0)]
 
-        usb.util.claim_interface(self.device, interface)
+        usb.util.claim_interface(device, interface)
 
-        self.endpoint = usb.util.find_descriptor(
+        endpoint = usb.util.find_descriptor(
             interface,
             # match the first OUT endpoint
             custom_match=lambda e: usb.util.endpoint_direction(e.bEndpointAddress)
             == usb.util.ENDPOINT_OUT,
         )
 
+        self.connection = USBConnection(device=device, endpoint=endpoint)
+
     def disconnect(self) -> None:
-        usb.util.dispose_resources(self.device)
+        if self.connection is None:
+            raise RuntimeError(
+                "This USBInterface has not yet been connected to the USB device."
+            )
+
+        usb.util.dispose_resources(self.connection.device)
 
     def send(self, message: protocol.Message) -> protocol.Response:
+        if self.connection is None:
+            raise RuntimeError(
+                "This USBInterface has not yet been connected to the USB device."
+            )
+
         payload = self.message_to_bytes(message)
         packet = self.pad_to_64(payload)
 
@@ -95,8 +111,8 @@ class USBInterface(Interface):
             print(f"Sending: {message}")
             print("\t" + ", ".join([hex(b) for b in payload]))
 
-        self.endpoint.write(bytes(packet))
-        response_packet = self.endpoint.read(RESPONSE_N_BYTES)
+        self.connection.endpoint.write(bytes(packet))
+        response_packet = self.connection.endpoint.read(RESPONSE_N_BYTES)
 
         response = self.bytes_to_response(list(response_packet))
 
