@@ -14,6 +14,8 @@ class Interface:
 MESSAGE_N_BYTES: int = 64
 RESPONSE_N_BYTES: int = 16
 
+WRITE_LED_TRIGGER: int = 0x33
+WRITE_LED_GROUP_SET: int = 0x35
 WRITE_LED_GROUPS_CLEAR: int = 0x37
 
 PROTOCOL_RESPONSE_OK: int = 0x00
@@ -68,23 +70,40 @@ class USBInterface(Interface):
         )
 
     def send(self, message: protocol.Message) -> protocol.Response:
-        if self.debug:
-            print(f"Sending: {message}")
-
         payload = self.message_to_bytes(message)
         packet = self.pad_to_64(payload)
+
+        if self.debug:
+            print(f"Sending: {message}")
+            print("\t" + ", ".join([hex(b) for b in payload]))
 
         self.endpoint.write(bytes(packet))
         response_packet = self.endpoint.read(RESPONSE_N_BYTES)
 
-        repsonse = self.bytes_to_response(list(response_packet))
+        response = self.bytes_to_response(list(response_packet))
 
-        return repsonse
+        if self.debug:
+            print(f"Recieved: {response}")
+            print("\t" + ", ".join([hex(b) for b in response_packet]))
+
+        return response
 
     @staticmethod
     def message_to_bytes(message: protocol.Message) -> List[int]:
-        if isinstance(message, protocol.LEDGroupsClear):
+        if isinstance(message, protocol.LEDTrigger):
+            return [WRITE_LED_TRIGGER]
+        elif isinstance(message, protocol.LEDGroupsClear):
             return [WRITE_LED_GROUPS_CLEAR]
+        elif isinstance(message, protocol.LEDGroupSet):
+            return [
+                WRITE_LED_GROUP_SET,
+                0x00,
+                message.led_start_index,
+                message.led_count,
+                message.mode,
+                0x01,
+                0x01,
+            ]
         else:
             raise NotImplementedError(
                 f"Sending {type(message)} is not implemented for USBInterface. ({message})"
