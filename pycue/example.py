@@ -4,6 +4,7 @@ import argparse
 import sys
 
 from . import interfaces
+from . import protocol
 
 
 def main(argv: List[str]) -> None:
@@ -11,7 +12,17 @@ def main(argv: List[str]) -> None:
 
     args = parser.parse_args(argv)
 
-    usb_interface = interfaces.USBInterface()
+    usb_interface = interfaces.USBInterface(debug=True)
+
+    messages = [
+        protocol.LEDGroupsClear(),
+    ]
+
+    for msg in messages:
+        response = usb_interface.send(msg)
+        print(response)
+
+        assert isinstance(response, protocol.Ok)
 
 
 if __name__ == "__main__":
