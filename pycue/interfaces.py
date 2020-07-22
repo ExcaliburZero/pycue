@@ -17,6 +17,8 @@ RESPONSE_N_BYTES: int = 16
 WRITE_LED_TRIGGER: int = 0x33
 WRITE_LED_GROUP_SET: int = 0x35
 WRITE_LED_GROUPS_CLEAR: int = 0x37
+WRITE_LED_MODE: int = 0x38
+WRITE_LED_PORT_TYPE: int = 0x3B
 
 PROTOCOL_RESPONSE_OK: int = 0x00
 
@@ -94,6 +96,10 @@ class USBInterface(Interface):
             return [WRITE_LED_TRIGGER]
         elif isinstance(message, protocol.LEDGroupsClear):
             return [WRITE_LED_GROUPS_CLEAR]
+        elif isinstance(message, protocol.LEDPortType):
+            return [WRITE_LED_PORT_TYPE, 0x00, message.port_type.value]
+        elif isinstance(message, protocol.LEDMode):
+            return [WRITE_LED_MODE, 0x00, message.channel_mode.value]
         elif isinstance(message, protocol.LEDGroupSet):
             return [
                 WRITE_LED_GROUP_SET,
