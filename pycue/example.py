@@ -22,7 +22,8 @@ def main(argv: List[str]) -> None:
         protocol.LEDGroupsClear(),
         protocol.LEDGroupSet(0, args.num_fans * leds_per_fan, 0),
         protocol.LEDPortType(protocol.PortType.WS2812B),
-        protocol.LEDMode(protocol.ChannelMode.SoftwarePlayback),
+        protocol.LEDClear(),
+        protocol.LEDMode(protocol.ChannelMode.HardwarePlayback),
         protocol.LEDTrigger(),
     ]
 

@@ -15,6 +15,7 @@ MESSAGE_N_BYTES: int = 64
 RESPONSE_N_BYTES: int = 16
 
 WRITE_LED_TRIGGER: int = 0x33
+WRITE_LED_CLEAR: int = 0x34
 WRITE_LED_GROUP_SET: int = 0x35
 WRITE_LED_GROUPS_CLEAR: int = 0x37
 WRITE_LED_MODE: int = 0x38
@@ -94,6 +95,8 @@ class USBInterface(Interface):
     def message_to_bytes(message: protocol.Message) -> List[int]:
         if isinstance(message, protocol.LEDTrigger):
             return [WRITE_LED_TRIGGER]
+        elif isinstance(message, protocol.LEDClear):
+            return [WRITE_LED_CLEAR]
         elif isinstance(message, protocol.LEDGroupsClear):
             return [WRITE_LED_GROUPS_CLEAR]
         elif isinstance(message, protocol.LEDPortType):

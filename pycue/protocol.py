@@ -23,6 +23,11 @@ class LEDTrigger(Message):
 
 
 @dataclass
+class LEDClear(Message):
+    pass
+
+
+@dataclass
 class LEDGroupSet(Message):
     led_start_index: int
     led_count: int
